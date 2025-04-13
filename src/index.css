@@ -1,0 +1,104 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 204 100% 97%;
+    --foreground: 201 90% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 201 90% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 201 90% 15%;
+
+    --primary: 199 89% 48%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 199 89% 60%;
+    --secondary-foreground: 201 90% 15%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 199 89% 39%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 199 89% 70%;
+    --input: 199 89% 70%;
+    --ring: 199 89% 39%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 201 90% 15%;
+    --sidebar-primary: 199 89% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 199 89% 95%;
+    --sidebar-accent-foreground: 201 90% 15%;
+    --sidebar-border: 199 89% 90%;
+    --sidebar-ring: 199 89% 39%;
+  }
+
+  .dark {
+    --background: 201 90% 15%;
+    --foreground: 210 40% 98%;
+
+    --card: 201 90% 20%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 201 90% 20%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 199 89% 48%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 199 89% 30%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 201 90% 25%;
+    --muted-foreground: 210 40% 80%;
+
+    --accent: 199 89% 35%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 201 90% 25%;
+    --input: 201 90% 25%;
+    --ring: 199 89% 48%;
+
+    --sidebar-background: 201 90% 20%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 199 89% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 201 90% 25%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 201 90% 25%;
+    --sidebar-ring: 199 89% 48%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+.glucose-chart .recharts-surface {
+  overflow: visible;
+}
+
+.glucose-chart .recharts-tooltip-wrapper {
+  z-index: 10;
+}
