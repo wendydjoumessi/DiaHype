@@ -13,7 +13,6 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { 
   User, 
   Ruler, 
@@ -23,14 +22,21 @@ import {
   Droplet, 
   BadgeCheck, 
   AlertTriangle,
-  Info
+  Info,
+  ShieldAlert
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { useAuth } from "@/contexts/AuthContext";
+import { saveOnboardingData } from "@/lib/supabaseUtils";
+import { useToast } from "@/hooks/use-toast";
 
 const Onboarding = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [progress, setProgress] = useState(20);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     age: "",
@@ -100,15 +106,50 @@ const Onboarding = () => {
   const bmi = calculateBMI();
   const bmiCategory = bmi !== "N/A" ? getBMICategory(parseFloat(bmi)) : { text: "N/A", color: "" };
 
-  const nextStep = () => {
+  const nextStep = async () => {
     if (currentStep < totalSteps) {
       setCurrentStep(prev => prev + 1);
       setProgress(prev => prev + (100 / totalSteps));
     } 
     else {
-      // Complete onboarding
-      localStorage.setItem("onboardingCompleted", "true");
-      navigate("/");
+      if (!user) {
+        toast({
+          title: "Authentication Required",
+          description: "You must be logged in to save your health profile. Your data will not be saved.",
+          variant: "destructive",
+        });
+        navigate("/sign-in");
+        return;
+      }
+
+      setIsSubmitting(true);
+      
+      try {
+        const result = await saveOnboardingData(user.id, formData);
+        
+        if (result.success) {
+          localStorage.setItem("onboardingCompleted", "true");
+          
+          toast({
+            title: "Onboarding Complete",
+            description: "Your health profile has been saved. Welcome to DiaHype!",
+            variant: "default",
+          });
+          
+          navigate("/dashboard");
+        } else {
+          throw new Error("Failed to save onboarding data");
+        }
+      } catch (error) {
+        console.error("Onboarding error:", error);
+        toast({
+          title: "Error Saving Data",
+          description: "We couldn't save your health profile. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -117,6 +158,31 @@ const Onboarding = () => {
       setCurrentStep(prev => prev - 1);
       setProgress(prev => prev - (100 / totalSteps));
     }
+  };
+
+  const renderAuthWarning = () => {
+    if (!user) {
+      return (
+        <div className="mb-6 flex items-start space-x-3 bg-red-50 p-4 rounded-lg border border-red-200">
+          <ShieldAlert className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
+          <div>
+            <h3 className="font-medium text-red-800">Not Authenticated</h3>
+            <p className="text-sm text-red-600">
+              You are not logged in. Your information will not be saved. Please{" "}
+              <Button 
+                variant="link" 
+                className="h-auto p-0 text-red-700 underline" 
+                onClick={() => navigate("/sign-in")}
+              >
+                sign in
+              </Button>{" "}
+              first to save your health profile.
+            </p>
+          </div>
+        </div>
+      );
+    }
+    return null;
   };
 
   return (
@@ -128,6 +194,8 @@ const Onboarding = () => {
             Complete your health profile to get personalized care
           </p>
         </div>
+
+        {renderAuthWarning()}
 
         <div className="mb-8">
           <Progress value={progress} className="h-2" />
@@ -462,9 +530,16 @@ const Onboarding = () => {
             </Button>
             <Button 
               onClick={nextStep}
-              disabled={currentStep === 5 && !formData.consentGiven}
+              disabled={(currentStep === 5 && !formData.consentGiven) || isSubmitting}
+              className="bg-health-primary hover:bg-health-accent"
             >
-              {currentStep === totalSteps ? "Complete Setup" : "Continue"}
+              {isSubmitting ? (
+                "Saving..."
+              ) : currentStep === totalSteps ? (
+                "Complete Setup"
+              ) : (
+                "Continue"
+              )}
             </Button>
           </CardFooter>
         </Card>

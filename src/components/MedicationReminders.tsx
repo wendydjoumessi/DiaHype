@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Check, Clock, AlertCircle } from "lucide-react";
-import { HealthCondition } from "@/pages/Index";
+import { HealthCondition } from "@/pages/UserDashboard";
 
 interface MedicationRemindersProps {
   conditions?: HealthCondition[];

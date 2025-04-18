@@ -4,7 +4,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
+import UserDashboard from "./pages/UserDashboard";
+import { AuthProvider } from "./contexts/AuthContext";
 import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
 import NotFound from "./pages/NotFound";
@@ -20,7 +21,9 @@ import SymptomChecker from "./pages/SymptomChecker";
 import WeightManagement from "./pages/WeightManagement";
 import GlucoseManagement from "./pages/GlucoseManagement";
 import BloodPressureManagement from "./pages/BloodPressureManagement";
+import Index from "./pages/Index";
 import { AdminRoute } from "./components/AdminRoute";
+import { AppLayout } from "./components/AppLayout";
 
 const queryClient = new QueryClient();
 
@@ -35,14 +38,28 @@ const App = () => (
           <Route path="/sign-in" element={<SignIn />} />
           <Route path="/sign-up" element={<SignUp />} />
           <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/patient-dashboard" element={
+              
+                <AuthProvider>
+                  <UserDashboard />
+                </AuthProvider>
+              
+            } />
+             <Route path="/doctor-dashboard" element={
+              <AppLayout>
+                <UserDashboard />
+              </AppLayout>
+            } />
+               <Route path="/admin-dashboard" element={
+              <AdminRoute>
+                <AppLayout>
+                  <AdminDashboard />
+                </AppLayout>
+              </AdminRoute>
+            } />
           <Route path="/profile" element={<Profile />} />
           <Route path="/appointments" element={<Appointments />} />
           <Route path="/wearables" element={<WearableIntegration />} />
-          <Route path="/admin" element={
-            <AdminRoute>
-              <AdminDashboard />
-            </AdminRoute>
-          } />
           <Route path="/messages" element={<Messages />} />
           <Route path="/medication" element={<Medications />} />
           <Route path="/settings" element={<Settings />} />

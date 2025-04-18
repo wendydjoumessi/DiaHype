@@ -51,7 +51,7 @@ export default function SignIn() {
         });
         
         // Navigate to the appropriate dashboard based on user type
-        navigate("/profile"); 
+        navigate("/patient-dashboard"); 
       }
     } catch (error) {
       console.error("Sign in error:", error);

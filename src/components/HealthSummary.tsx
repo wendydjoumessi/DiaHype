@@ -2,34 +2,34 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Droplet, Heart, Weight, Lightbulb, Trophy } from "lucide-react";
-import { HealthCondition } from "@/pages/Index";
+import { HealthCondition } from "@/pages/UserDashboard";
 
 interface HealthSummaryProps {
   selectedConditions: HealthCondition[];
 }
 
-export function HealthSummary({ selectedConditions }: HealthSummaryProps) {
-  // If no conditions are selected, show a different message
-  if (selectedConditions.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Your Health Summary</CardTitle>
-          <CardDescription>
-            Select a health condition above to see your personalized summary
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <Lightbulb className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">
-              No health conditions selected. Choose one or more conditions above to see your personalized health summary.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+export function HealthSummary({ selectedConditions = [] }: HealthSummaryProps) {
+  // // If no conditions are selected, show a different message
+  // if (selectedConditions.length === 0) {
+  //   return (
+  //     <Card>
+  //       <CardHeader>
+  //         <CardTitle>Your Health Summary</CardTitle>
+  //         <CardDescription>
+  //           Select a health condition above to see your personalized summary
+  //         </CardDescription>
+  //       </CardHeader>
+  //       <CardContent>
+  //         <div className="flex flex-col items-center justify-center py-8 text-center">
+  //           <Lightbulb className="h-12 w-12 text-muted-foreground mb-4" />
+  //           <p className="text-muted-foreground">
+  //             No health conditions selected. Choose one or more conditions above to see your personalized health summary.
+  //           </p>
+  //         </div>
+  //       </CardContent>
+  //     </Card>
+  //   );
+  // }
 
   return (
     <Card>

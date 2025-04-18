@@ -2,7 +2,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle, Shield, Brain, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { HealthCondition } from "@/pages/Index";
+import { HealthCondition } from "@/pages/UserDashboard";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
 
@@ -12,7 +12,7 @@ interface RiskAssessmentProps {
 
 export function RiskAssessment({ selectedConditions }: RiskAssessmentProps) {
   // Skip if no conditions selected
-  if (selectedConditions.length === 0) {
+  if (!selectedConditions) {
     return null;
   }
 
