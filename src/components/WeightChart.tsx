@@ -1,41 +1,20 @@
 
 import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from 'recharts';
-
-// Enhanced mock data for weight chart showing progression over time
-const data = [
-  { date: '2023-04-01', value: 87.5 },
-  { date: '2023-04-04', value: 86.8 },
-  { date: '2023-04-07', value: 86.2 },
-  { date: '2023-04-10', value: 85.2 },
-  { date: '2023-04-13', value: 84.7 },
-  { date: '2023-04-16', value: 84.3 },
-  { date: '2023-04-19', value: 83.8 },
-  { date: '2023-04-22', value: 83.5 },
-  { date: '2023-04-25', value: 83.1 },
-  { date: '2023-04-28', value: 82.7 },
-  { date: '2023-05-01', value: 82.3 },
-  { date: '2023-05-04', value: 81.9 },
-  { date: '2023-05-07', value: 81.5 },
-];
+import { format, parseISO } from 'date-fns';
+import { useLatestMeasurements } from '@/hooks/useLatestMeasurements';
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
-    const date = new Date(label).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-    
     return (
       <div className="bg-white p-3 shadow-md rounded-md border border-gray-200">
-        <p className="font-medium">{date}</p>
-        <p className="text-health-primary font-bold">{`${payload[0].value} kg`}</p>
+        <p className="font-medium">{label}</p>
+        <p className="text-health-primary font-bold">{`${payload[0].value} ${payload[0].unit || 'kg'}`}</p>
         {payload[0].payload.trend && (
           <p className={`text-sm ${payload[0].payload.trend === 'down' ? 'text-green-600' : 'text-red-600'}`}>
             {payload[0].payload.trend === 'down' 
-              ? `↓ ${payload[0].payload.change.toFixed(1)} kg`
-              : `↑ ${payload[0].payload.change.toFixed(1)} kg`
+              ? `↓ ${payload[0].payload.change.toFixed(1)} ${payload[0].payload.unit || 'kg'}`
+              : `↑ ${payload[0].payload.change.toFixed(1)} ${payload[0].payload.unit || 'kg'}`
             } from previous
           </p>
         )}
@@ -47,11 +26,25 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export function WeightChart() {
+  const { weightHistory } = useLatestMeasurements();
+  
+  // Format data for chart
+  const baseChartData = weightHistory.map(record => ({
+    date: format(parseISO(record.timestamp), 'MMM d'),
+    value: record.weight,
+    unit: record.unit
+  }));
+
+  // Use fallback data if no records exist
+  const baseData = baseChartData.length > 0 ? baseChartData : [
+    { date: 'No data', value: 80, unit: 'kg' }
+  ];
+
   // Add trend indicators and changes to data
-  const enhancedData = data.map((item, index) => {
+  const enhancedData = baseData.map((item, index) => {
     if (index === 0) return { ...item };
     
-    const prev = data[index - 1].value;
+    const prev = baseData[index - 1].value;
     const current = item.value;
     const change = Math.abs(current - prev);
     const trend = current < prev ? 'down' : 'up';
@@ -64,9 +57,22 @@ export function WeightChart() {
   });
 
   // Calculate ideal weight range based on height (example: for 175cm)
-  const heightInM = 1.75;
+  const heightInM = 1.75; // This should ideally come from user profile
   const idealWeightLower = Math.round((18.5 * heightInM * heightInM) * 10) / 10;
   const idealWeightUpper = Math.round((24.9 * heightInM * heightInM) * 10) / 10;
+
+  // Calculate overall trend
+  const calculateTrend = () => {
+    if (baseChartData.length < 2) return { difference: 0 };
+    
+    const firstWeight = baseChartData[0].value;
+    const lastWeight = baseChartData[baseChartData.length - 1].value;
+    const difference = lastWeight - firstWeight;
+    
+    return { difference };
+  };
+  
+  const { difference } = calculateTrend();
 
   return (
     <div className="w-full h-[300px]">
@@ -95,13 +101,9 @@ export function WeightChart() {
             tick={{ fontSize: 12 }} 
             tickLine={false}
             axisLine={{ stroke: '#E5E7EB' }}
-            tickFormatter={(value) => {
-              const date = new Date(value);
-              return date.getDate() + '/' + (date.getMonth() + 1);
-            }}
           />
           <YAxis 
-            domain={['dataMin - 3', 'dataMax + 3']}
+            domain={[(dataMin) => Math.max(dataMin - 5, 0), (dataMax) => dataMax + 5]}
             tick={{ fontSize: 12 }}
             tickLine={false}
             axisLine={{ stroke: '#E5E7EB' }}
@@ -124,9 +126,20 @@ export function WeightChart() {
           <text x={50} y={idealWeightUpper * 2.5} fill="#10B981" fontSize={10}>Ideal range</text>
         </LineChart>
       </ResponsiveContainer>
-      <div className="mt-3 text-center text-sm text-gray-500">
-        <p>Weight trend: <span className="text-green-600 font-medium">Down 5.2 kg</span> over the last month</p>
-      </div>
+      {baseChartData.length > 1 ? (
+        <div className="mt-3 text-center text-sm text-gray-500">
+          <p>Weight trend: 
+            <span className={difference < 0 ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+              {difference < 0 ? 'Down ' : 'Up '}
+              {Math.abs(difference).toFixed(1)} {baseData[0].unit || 'kg'}
+            </span> over the displayed period
+          </p>
+        </div>
+      ) : (
+        <div className="mt-3 text-center text-sm text-gray-500">
+          <p>Not enough data to calculate weight trend. Record more measurements.</p>
+        </div>
+      )}
     </div>
   );
 }

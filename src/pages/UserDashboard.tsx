@@ -8,6 +8,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useHealthConditions } from "@/hooks/useHealthConditions";
 import { useLatestMeasurements } from "@/hooks/useLatestMeasurements";
+import { useRegionBasedRecommendations } from "@/hooks/useRegionBasedRecommendations";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AppLayout } from "@/components/AppLayout";
@@ -16,7 +17,7 @@ import { UpcomingAppointments } from "@/components/UpcomingAppointments";
 import { MedicationReminders } from "@/components/MedicationReminders";
 import { DoctorMessages } from "@/components/DoctorMessages";
 import { ConditionSelector } from "@/components/ConditionSelector";
-// import { HealthSummary } from "@/components/HealthSummary";
+import { HealthSummary } from "@/components/HealthSummary";
 import { RiskAssessment } from "@/components/RiskAssessment";
 import { LogBloodSugarDialog } from "@/components/LogBloodSugarDialog";
 import { LogBloodPressureDialog } from "@/components/LogBloodPressureDialog";
@@ -27,22 +28,28 @@ import { WeightChart } from "@/components/WeightChart";
 import { BloodPressureChart } from "@/components/BloodPressureChart";
 import { HealthTipsCard } from "@/components/HealthTipsCard";
 
-export type ConditionName = "diabetes" | "hypertension" | "obesity" | "none";
+export type ConditionName = "diabetes";
 
 const UserDashboard = () => {
-  // const mockUser = {
-  //   id: "test-user-id",
-  //   email: "test@example.com"
-  // };
-  
-  // const mockProfile = {
-  //   first_name: "John",
-  //   last_name: "Doe"
-  // };
-  
-  const { user , profile} = useAuth();
+ 
+  const { user, profile } = useAuth();
   const { data: healthConditions, isLoading: isLoadingConditions } = useHealthConditions();
-  const { bloodSugar, bloodPressure, weight, isLoading: isLoadingMeasurements } = useLatestMeasurements();
+  const { 
+    bloodSugar, 
+    bloodPressure, 
+    weight, 
+    bloodSugarHistory, 
+    bloodPressureHistory, 
+    weightHistory,
+    isLoading: isLoadingMeasurements 
+  } = useLatestMeasurements();
+  
+  const { 
+    dietRecommendations, 
+    exerciseRecommendations, 
+    isLoading: isLoadingRecommendations 
+  } = useRegionBasedRecommendations();
+  
   const navigate = useNavigate();
   
   const [bloodSugarDialogOpen, setBloodSugarDialogOpen] = useState(false);
@@ -50,54 +57,20 @@ const UserDashboard = () => {
   const [weightDialogOpen, setWeightDialogOpen] = useState(false);
   const [selectedCondition, setSelectedCondition] = useState<ConditionName | null>(null);
 
-  const mockHealthConditions = [
-    {
-      id: "1",
-      condition_name: "diabetes",
-      status: "active",
-      severity: "moderate"
-    },
-    {
-      id: "2",
-      condition_name: "hypertension", 
-      status: "active",
-      severity: "mild"
-    },
-    {
-      id: "3",
-      condition_name: "obesity",
-      status: "active", 
-      severity: "severe"
-    }
-  ];
 
-  // const actualHealthConditions = healthConditions || mockHealthConditions;
 
-  // const actualHealthConditions = healthConditions;
-
-  const actualHealthConditions =  mockHealthConditions;
+  const actualHealthConditions = healthConditions || [];
   
   const selectedConditions = actualHealthConditions.map(c => 
     c.condition_name as ConditionName
   ) || [];
 
-  const mockBloodSugar = bloodSugar || {
-    glucose_level: 180,
-    unit: "mg/dL",
-    measured_at: new Date().toISOString()
-  };
+  // Provide fallbacks for health data
+  const currentBloodSugar = bloodSugar || [];
   
-  const mockBloodPressure = bloodPressure || {
-    systolic: 145,
-    diastolic: 92,
-    measured_at: new Date().toISOString()
-  };
+  const currentBloodPressure = bloodPressure || [];
   
-  const mockWeight = weight || {
-    weight: 98,
-    unit: "kg",
-    timestamp: new Date().toISOString()
-  };
+  const currentWeight = weight || [];
 
   const mockHealthConditionsForComponents: HealthConditionType[] = selectedConditions.map(condition => ({
     id: condition,
@@ -121,7 +94,7 @@ const UserDashboard = () => {
     );
   }
 
-  if (showLoading && (isLoadingConditions || isLoadingMeasurements)) {
+  if (showLoading && (isLoadingConditions || isLoadingMeasurements || isLoadingRecommendations)) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center min-h-screen">
@@ -134,16 +107,15 @@ const UserDashboard = () => {
   const getHealthInsights = () => {
     const insights = [];
 
-    const bloodSugarData = mockBloodSugar;
-    if (bloodSugarData) {
-      const level = bloodSugarData.glucose_level;
-      if (level > 180) {
+    if (currentBloodSugar) {
+      const level = currentBloodSugar.glucose_level;
+      if (level > 160) {
         insights.push({
           title: "High Blood Sugar",
           description: "Your blood sugar is above the recommended range. Consider consulting your healthcare provider.",
           severity: "critical",
           trend: "up",
-          metric: `${level} ${bloodSugarData.unit}`,
+          metric: `${level} ${currentBloodSugar.unit}`,
           icon: <Droplet className="h-4 w-4" />
         });
       } else if (level < 70) {
@@ -152,7 +124,7 @@ const UserDashboard = () => {
           description: "Your blood sugar is below the normal range. Consider having a snack.",
           severity: "warning",
           trend: "down",
-          metric: `${level} ${bloodSugarData.unit}`,
+          metric: `${level} ${currentBloodSugar.unit}`,
           icon: <Droplet className="h-4 w-4" />
         });
       } else {
@@ -161,15 +133,14 @@ const UserDashboard = () => {
           description: "Your blood sugar is within the target range.",
           severity: "positive",
           trend: "stable",
-          metric: `${level} ${bloodSugarData.unit}`,
+          metric: `${level} ${currentBloodSugar.unit}`,
           icon: <Droplet className="h-4 w-4" />
         });
       }
     }
 
-    const bloodPressureData = mockBloodPressure;
-    if (bloodPressureData) {
-      const { systolic, diastolic } = bloodPressureData;
+    if (currentBloodPressure) {
+      const { systolic, diastolic } = currentBloodPressure;
       if (systolic >= 140 || diastolic >= 90) {
         insights.push({
           title: "High Blood Pressure",
@@ -200,10 +171,9 @@ const UserDashboard = () => {
       }
     }
 
-    const weightData = mockWeight;
-    if (weightData) {
-      const heightInMeters = 1.75;
-      const weightInKg = weightData.unit === 'kg' ? weightData.weight : weightData.weight * 0.453592;
+    if (currentWeight) {
+      const heightInMeters = 1.75; // This should ideally come from user profile
+      const weightInKg = currentWeight.unit === 'kg' ? currentWeight.weight : currentWeight.weight * 0.453592;
       const bmi = weightInKg / (heightInMeters * heightInMeters);
       
       if (bmi >= 30) {
@@ -212,7 +182,7 @@ const UserDashboard = () => {
           description: "Your BMI indicates obesity. Consider a weight management plan with your doctor.",
           severity: "critical",
           trend: "up",
-          metric: `${weightData.weight} ${weightData.unit} (BMI: ${bmi.toFixed(1)})`,
+          metric: `${currentWeight.weight} ${currentWeight.unit} (BMI: ${bmi.toFixed(1)})`,
           icon: <Weight className="h-4 w-4" />
         });
       } else if (bmi >= 25) {
@@ -221,7 +191,7 @@ const UserDashboard = () => {
           description: "Your BMI indicates you're overweight. Regular exercise and a balanced diet can help.",
           severity: "warning",
           trend: "up",
-          metric: `${weightData.weight} ${weightData.unit} (BMI: ${bmi.toFixed(1)})`,
+          metric: `${currentWeight.weight} ${currentWeight.unit} (BMI: ${bmi.toFixed(1)})`,
           icon: <Weight className="h-4 w-4" />
         });
       } else if (bmi < 18.5) {
@@ -230,7 +200,7 @@ const UserDashboard = () => {
           description: "Your BMI indicates you're underweight. Consult with a nutritionist.",
           severity: "warning",
           trend: "down",
-          metric: `${weightData.weight} ${weightData.unit} (BMI: ${bmi.toFixed(1)})`,
+          metric: `${currentWeight.weight} ${currentWeight.unit} (BMI: ${bmi.toFixed(1)})`,
           icon: <Weight className="h-4 w-4" />
         });
       } else {
@@ -239,209 +209,13 @@ const UserDashboard = () => {
           description: "Your BMI is within the healthy range.",
           severity: "positive",
           trend: "stable",
-          metric: `${weightData.weight} ${weightData.unit} (BMI: ${bmi.toFixed(1)})`,
+          metric: `${currentWeight.weight} ${currentWeight.unit} (BMI: ${bmi.toFixed(1)})`,
           icon: <Weight className="h-4 w-4" />
         });
       }
     }
 
     return insights;
-  };
-
-  const getExerciseRecommendations = () => {
-    const recommendations = [];
-    
-    if (selectedConditions.includes("obesity")) {
-      recommendations.push({
-        title: "Walking",
-        description: "Start with 20-30 minutes of brisk walking each day, gradually increasing duration.",
-        intensity: "moderate",
-        icon: <Activity />,
-        details: "Walking is a perfect low-impact exercise to start with. Begin with short sessions of 10-15 minutes and gradually work up to 30+ minutes daily. Find a comfortable pace where you can still talk but are slightly breathless.",
-        benefits: ["Burns calories", "Improves cardiovascular health", "Low impact on joints", "Can be done anywhere"],
-        duration: "30 minutes",
-        frequency: "5-7 days per week",
-        videoLink: "https://www.youtube.com/watch?v=njeZ29umqVE"
-      });
-      recommendations.push({
-        title: "Swimming",
-        description: "Low-impact exercise ideal for weight management and cardiovascular health.",
-        intensity: "moderate",
-        icon: <Dumbbell />,
-        details: "Swimming is excellent for people with excess weight as water supports your body, reducing strain on joints while providing resistance for muscle building.",
-        benefits: ["Full body workout", "Burns significant calories", "Zero impact on joints", "Improves lung capacity"],
-        duration: "30-45 minutes",
-        frequency: "3-4 days per week",
-        videoLink: "https://www.youtube.com/watch?v=s3FUBz0RJ18"
-      });
-    }
-    
-    if (selectedConditions.includes("hypertension")) {
-      recommendations.push({
-        title: "Cycling",
-        description: "Improves heart health and helps lower blood pressure. Aim for 30 minutes 3-5 times weekly.",
-        intensity: "moderate",
-        icon: <Activity />,
-        details: "Stationary or outdoor cycling helps lower blood pressure by strengthening your heart and blood vessels. Start with 10-15 minute sessions and gradually build up.",
-        benefits: ["Strengthens heart muscle", "Improves blood vessel elasticity", "Reduces blood pressure", "Low impact cardio"],
-        duration: "30 minutes",
-        frequency: "3-5 days per week",
-        videoLink: "https://www.youtube.com/watch?v=tgqQdgxL9e0"
-      });
-      recommendations.push({
-        title: "Light Strength Training",
-        description: "Helps build muscle and improve metabolism. Start with light weights and proper form.",
-        intensity: "light",
-        icon: <Dumbbell />,
-        details: "Light resistance training with proper breathing techniques helps manage blood pressure. Focus on lighter weights with higher repetitions.",
-        benefits: ["Builds lean muscle mass", "Improves glucose metabolism", "Enhances overall fitness", "Boosts resting metabolic rate"],
-        duration: "20-30 minutes",
-        frequency: "2-3 days per week, non-consecutive days",
-        videoLink: "https://www.youtube.com/watch?v=Ev6yE55kYGw"
-      });
-    }
-    
-    if (selectedConditions.includes("diabetes")) {
-      recommendations.push({
-        title: "Interval Walking",
-        description: "Alternating between fast and normal pace helps improve insulin sensitivity.",
-        intensity: "moderate",
-        icon: <Activity />,
-        details: "Alternate 3 minutes of brisk walking with 3 minutes of moderate walking. This interval approach has been shown to significantly improve blood sugar control.",
-        benefits: ["Improves insulin sensitivity", "Burns glucose effectively", "Manageable for beginners", "Adaptable to fitness level"],
-        duration: "30 minutes",
-        frequency: "5 days per week",
-        videoLink: "https://www.youtube.com/watch?v=lAhEHUYJ9uo"
-      });
-      recommendations.push({
-        title: "Resistance Training",
-        description: "Helps improve glucose utilization and insulin sensitivity.",
-        intensity: "moderate",
-        icon: <Dumbbell />,
-        details: "Using resistance bands or light weights, perform exercises that target major muscle groups. This helps muscles absorb blood glucose more effectively.",
-        benefits: ["Improves glucose uptake by muscles", "Builds muscle mass", "Increases metabolic rate", "Enhances insulin sensitivity"],
-        duration: "20-30 minutes",
-        frequency: "2-3 days per week",
-        videoLink: "https://www.youtube.com/watch?v=TSD8Q4SOBWE"
-      });
-    }
-    
-    if (recommendations.length === 0) {
-      recommendations.push({
-        title: "Daily Walking",
-        description: "Aim for 10,000 steps per day for general health maintenance.",
-        intensity: "light",
-        icon: <Activity />,
-        details: "Walking is a perfect exercise for overall health. Aim to gradually build up to 10,000 steps daily.",
-        benefits: ["Improves circulation", "Maintains joint flexibility", "Supports mental wellbeing", "Helps maintain weight"],
-        duration: "Throughout the day",
-        frequency: "Daily",
-        videoLink: "https://www.youtube.com/watch?v=3Ka7B3hCg08"
-      });
-      recommendations.push({
-        title: "Stretching",
-        description: "Regular stretching improves flexibility and prevents injuries.",
-        intensity: "light",
-        icon: <Dumbbell />,
-        details: "A daily stretching routine helps maintain flexibility and prevents stiffness. Hold each stretch for 20-30 seconds without bouncing.",
-        benefits: ["Increases flexibility", "Improves range of motion", "Reduces muscle tension", "Enhances physical performance"],
-        duration: "10-15 minutes",
-        frequency: "Daily",
-        videoLink: "https://www.youtube.com/watch?v=L_xrDAtykMI"
-      });
-    }
-    
-    return recommendations;
-  };
-
-  const getNutritionRecommendations = () => {
-    const recommendations = [];
-    
-    if (selectedConditions.includes("obesity")) {
-      recommendations.push({
-        title: "Portion Control",
-        description: "Use smaller plates and practice mindful eating to reduce calorie intake.",
-        category: "Weight Management",
-        icon: <Salad />,
-        foods: ["Vegetables (fill half your plate)", "Lean proteins", "Whole grains (quarter plate)"],
-        avoid: ["Sugary beverages", "Processed foods", "Large portion sizes"],
-        mealPlan: "Focus on protein and fiber at each meal to promote fullness with fewer calories."
-      });
-      recommendations.push({
-        title: "Low-Calorie, Nutrient-Dense Foods",
-        description: "Emphasize foods with high nutritional value and lower calories.",
-        category: "Weight Management",
-        icon: <Apple />,
-        foods: ["Leafy greens", "Berries", "Lean poultry", "Fish", "Legumes"],
-        avoid: ["Fried foods", "High-fat dairy", "Refined carbohydrates"],
-        mealPlan: "Aim for colorful meals with at least 3 different vegetables daily."
-      });
-    }
-    
-    if (selectedConditions.includes("hypertension")) {
-      recommendations.push({
-        title: "DASH Diet Approach",
-        description: "Dietary Approaches to Stop Hypertension - proven to lower blood pressure.",
-        category: "Blood Pressure",
-        icon: <Heart />,
-        foods: ["Fruits", "Vegetables", "Whole grains", "Low-fat dairy", "Lean proteins"],
-        avoid: ["Processed meats", "Canned soups", "Salty snacks"],
-        mealPlan: "Aim for 4-5 servings each of fruits and vegetables daily."
-      });
-      recommendations.push({
-        title: "Sodium Reduction",
-        description: "Limit sodium to help manage blood pressure levels.",
-        category: "Blood Pressure",
-        icon: <Heart />,
-        foods: ["Fresh herbs and spices for flavoring", "Potassium-rich foods like bananas and spinach"],
-        avoid: ["Table salt", "Processed foods", "Restaurant meals"],
-        mealPlan: "Gradually reduce salt in cooking to allow taste buds to adjust."
-      });
-    }
-    
-    if (selectedConditions.includes("diabetes")) {
-      recommendations.push({
-        title: "Low Glycemic Index Foods",
-        description: "Choose foods that cause slower, smaller rises in blood glucose levels.",
-        category: "Blood Sugar",
-        icon: <Droplet />,
-        foods: ["Steel-cut oats", "Sweet potatoes", "Legumes", "Most fruits", "Non-starchy vegetables"],
-        avoid: ["White bread", "White rice", "Sugary cereals", "Candy", "Soda"],
-        mealPlan: "Pair carbohydrates with proteins or healthy fats to slow glucose absorption."
-      });
-      recommendations.push({
-        title: "Consistent Carbohydrate Timing",
-        description: "Space carbohydrates throughout the day to maintain steady blood sugar.",
-        category: "Blood Sugar",
-        icon: <Droplet />,
-        foods: ["Whole grains", "Quinoa", "Brown rice", "Lentils"],
-        avoid: ["Skipping meals", "Large carbohydrate portions", "Late night eating"],
-        mealPlan: "Aim for 3 meals and 2-3 small snacks at consistent times daily."
-      });
-    }
-    
-    if (recommendations.length === 0) {
-      recommendations.push({
-        title: "Balanced Diet",
-        description: "Focus on a varied diet with all major food groups for overall health.",
-        category: "General Health",
-        icon: <Apple />,
-        foods: ["Whole grains", "Lean proteins", "Healthy fats", "Various fruits and vegetables"],
-        avoid: ["Excessive processed foods", "Trans fats", "Added sugars"],
-        mealPlan: "Follow the plate method: half vegetables, quarter protein, quarter whole grains."
-      });
-      recommendations.push({
-        title: "Hydration",
-        description: "Maintain proper hydration for overall health and wellbeing.",
-        category: "General Health",
-        icon: <Droplet />,
-        foods: ["Water", "Herbal teas", "Fruits with high water content"],
-        avoid: ["Sugary drinks", "Excessive caffeine", "Alcohol"],
-        mealPlan: "Aim for 8 cups (64 oz) of water daily, more if active or in hot weather."
-      });
-    }
-    
-    return recommendations;
   };
 
   const [selectedExercise, setSelectedExercise] = useState<any>(null);
@@ -457,12 +231,21 @@ const UserDashboard = () => {
   const ExerciseDetailsComponent = ({ exercise }: { exercise: any }) => {
     if (!exercise) return null;
     
+    const Icon = () => {
+      if (exercise.icon === "Activity") return <Activity className="h-6 w-6 text-blue-500" />;
+      if (exercise.icon === "Dumbbell") return <Dumbbell className="h-6 w-6 text-blue-500" />;
+      return <Activity className="h-6 w-6 text-blue-500" />;
+    };
+    
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold text-gray-900">{exercise.title}</h2>
+              <div className="flex items-center">
+                <Icon />
+                <h2 className="text-2xl font-bold text-gray-900 ml-2">{exercise.title}</h2>
+              </div>
               <button 
                 onClick={closeExerciseDetails}
                 className="text-gray-500 hover:text-gray-700"
@@ -526,7 +309,7 @@ const UserDashboard = () => {
     );
   };
 
-  const userFirstName = profile?.first_name ;
+  const userFirstName = profile?.first_name;
 
   return (
     <AppLayout>
@@ -579,8 +362,8 @@ const UserDashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {selectedConditions.includes("diabetes") && (
             <Card className={cn(
-              mockBloodSugar.glucose_level > 180 ? "border-red-300 bg-red-50" : 
-              mockBloodSugar.glucose_level < 70 ? "border-yellow-300 bg-yellow-50" : 
+              currentBloodSugar.glucose_level > 160 ? "border-red-300 bg-red-50" : 
+              currentBloodSugar.glucose_level < 70 ? "border-yellow-300 bg-yellow-50" : 
               "border-green-300 bg-green-50"
             )}>
               <CardHeader className="pb-2">
@@ -593,21 +376,21 @@ const UserDashboard = () => {
                   <div className="flex items-center">
                     <Droplet className={cn(
                       "mr-2 h-5 w-5",
-                      mockBloodSugar.glucose_level > 180 ? "text-red-500" : 
-                      mockBloodSugar.glucose_level < 70 ? "text-yellow-500" : 
+                      currentBloodSugar.glucose_level > 160 ? "text-red-500" : 
+                      currentBloodSugar.glucose_level < 70 ? "text-yellow-500" : 
                       "text-green-500"
                     )} />
-                    <span className="text-2xl font-bold">{mockBloodSugar.glucose_level}</span>
-                    <span className="ml-1 text-sm">{mockBloodSugar.unit}</span>
+                    <span className="text-2xl font-bold">{currentBloodSugar.glucose_level}</span>
+                    <span className="ml-1 text-sm">{currentBloodSugar.unit}</span>
                   </div>
                   <div>
-                    {mockBloodSugar.glucose_level > 180 && <ArrowUp className="h-5 w-5 text-red-500" />}
-                    {mockBloodSugar.glucose_level < 70 && <ArrowDown className="h-5 w-5 text-yellow-500" />}
-                    {(mockBloodSugar.glucose_level >= 70 && mockBloodSugar.glucose_level <= 180) && <CheckCircle className="h-5 w-5 text-green-500" />}
+                    {currentBloodSugar.glucose_level > 160 && <ArrowUp className="h-5 w-5 text-red-500" />}
+                    {currentBloodSugar.glucose_level < 70 && <ArrowDown className="h-5 w-5 text-yellow-500" />}
+                    {(currentBloodSugar.glucose_level >= 70 && currentBloodSugar.glucose_level <= 160) && <CheckCircle className="h-5 w-5 text-green-500" />}
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Last checked: {new Date(mockBloodSugar.measured_at).toLocaleString()}
+                  Last checked: {new Date(currentBloodSugar.measured_at).toLocaleString()}
                 </p>
               </CardContent>
             </Card>
@@ -615,8 +398,8 @@ const UserDashboard = () => {
           
           {selectedConditions.includes("hypertension") && (
             <Card className={cn(
-              (mockBloodPressure.systolic >= 140 || mockBloodPressure.diastolic >= 90) ? "border-red-300 bg-red-50" :
-              (mockBloodPressure.systolic <= 90 || mockBloodPressure.diastolic <= 60) ? "border-yellow-300 bg-yellow-50" :
+              (currentBloodPressure.systolic >= 140 || currentBloodPressure.diastolic >= 90) ? "border-red-300 bg-red-50" :
+              (currentBloodPressure.systolic <= 90 || currentBloodPressure.diastolic <= 60) ? "border-yellow-300 bg-yellow-50" :
               "border-green-300 bg-green-50"
             )}>
               <CardHeader className="pb-2">
@@ -629,23 +412,23 @@ const UserDashboard = () => {
                   <div className="flex items-center">
                     <Heart className={cn(
                       "mr-2 h-5 w-5",
-                      (mockBloodPressure.systolic >= 140 || mockBloodPressure.diastolic >= 90) ? "text-red-500" :
-                      (mockBloodPressure.systolic <= 90 || mockBloodPressure.diastolic <= 60) ? "text-yellow-500" :
+                      (currentBloodPressure.systolic >= 140 || currentBloodPressure.diastolic >= 90) ? "text-red-500" :
+                      (currentBloodPressure.systolic <= 90 || currentBloodPressure.diastolic <= 60) ? "text-yellow-500" :
                       "text-green-500"
                     )} />
                     <span className="text-2xl font-bold">
-                      {mockBloodPressure.systolic}/{mockBloodPressure.diastolic}
+                      {currentBloodPressure.systolic}/{currentBloodPressure.diastolic}
                     </span>
                     <span className="ml-1 text-sm">mmHg</span>
                   </div>
                   <div>
-                    {(mockBloodPressure.systolic >= 140 || mockBloodPressure.diastolic >= 90) && <ArrowUp className="h-5 w-5 text-red-500" />}
-                    {(mockBloodPressure.systolic <= 90 || mockBloodPressure.diastolic <= 60) && <ArrowDown className="h-5 w-5 text-yellow-500" />}
-                    {(mockBloodPressure.systolic > 90 && mockBloodPressure.systolic < 140 && mockBloodPressure.diastolic > 60 && mockBloodPressure.diastolic < 90) && <CheckCircle className="h-5 w-5 text-green-500" />}
+                    {(currentBloodPressure.systolic >= 140 || currentBloodPressure.diastolic >= 90) && <ArrowUp className="h-5 w-5 text-red-500" />}
+                    {(currentBloodPressure.systolic <= 90 || currentBloodPressure.diastolic <= 60) && <ArrowDown className="h-5 w-5 text-yellow-500" />}
+                    {(currentBloodPressure.systolic > 90 && currentBloodPressure.systolic < 140 && currentBloodPressure.diastolic > 60 && currentBloodPressure.diastolic < 90) && <CheckCircle className="h-5 w-5 text-green-500" />}
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Last checked: {new Date(mockBloodPressure.measured_at).toLocaleString()}
+                  Last checked: {new Date(currentBloodPressure.measured_at).toLocaleString()}
                 </p>
               </CardContent>
             </Card>
@@ -653,8 +436,8 @@ const UserDashboard = () => {
           
           {selectedConditions.includes("obesity") && (
             <Card className={cn(
-              mockWeight.weight > 100 ? "border-red-300 bg-red-50" :
-              mockWeight.weight > 85 ? "border-yellow-300 bg-yellow-50" :
+              currentWeight.weight > 100 ? "border-red-300 bg-red-50" :
+              currentWeight.weight > 85 ? "border-yellow-300 bg-yellow-50" :
               "border-green-300 bg-green-50"
             )}>
               <CardHeader className="pb-2">
@@ -667,21 +450,21 @@ const UserDashboard = () => {
                   <div className="flex items-center">
                     <Weight className={cn(
                       "mr-2 h-5 w-5",
-                      mockWeight.weight > 100 ? "text-red-500" :
-                      mockWeight.weight > 85 ? "text-yellow-500" :
+                      currentWeight.weight > 100 ? "text-red-500" :
+                      currentWeight.weight > 85 ? "text-yellow-500" :
                       "text-green-500"
                     )} />
-                    <span className="text-2xl font-bold">{mockWeight.weight}</span>
-                    <span className="ml-1 text-sm">{mockWeight.unit}</span>
+                    <span className="text-2xl font-bold">{currentWeight.weight}</span>
+                    <span className="ml-1 text-sm">{currentWeight.unit}</span>
                   </div>
                   <div>
-                    {mockWeight.weight > 100 && <ArrowUp className="h-5 w-5 text-red-500" />}
-                    {mockWeight.weight > 85 && mockWeight.weight <= 100 && <TrendingUp className="h-5 w-5 text-yellow-500" />}
-                    {mockWeight.weight <= 85 && <CheckCircle className="h-5 w-5 text-green-500" />}
+                    {currentWeight.weight > 100 && <ArrowUp className="h-5 w-5 text-red-500" />}
+                    {currentWeight.weight > 85 && currentWeight.weight <= 100 && <TrendingUp className="h-5 w-5 text-yellow-500" />}
+                    {currentWeight.weight <= 85 && <CheckCircle className="h-5 w-5 text-green-500" />}
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Last checked: {new Date(mockWeight.timestamp).toLocaleString()}
+                  Last checked: {new Date(currentWeight.timestamp).toLocaleString()}
                 </p>
               </CardContent>
             </Card>
@@ -689,12 +472,12 @@ const UserDashboard = () => {
         </div>
 
         <ConditionSelector 
-                conditions={["diabetes", "hypertension", "obesity"]} 
-                selectedCondition={selectedConditions[0] || null}
-                onSelect={(condition) => setSelectedCondition(condition as ConditionName)}
-         />
-
-        {/* <HealthSummary conditions={actualHealthConditions || []} /> */}
+          conditions={["diabetes", "hypertension", "obesity"]} 
+          selectedCondition={selectedConditions[0] || null}
+          onSelect={(condition) => setSelectedCondition(condition as ConditionName)}
+        />
+        
+        <HealthSummary conditions={actualHealthConditions || []} />
 
         <div className="grid grid-cols-1 gap-4">
           <Card>
@@ -755,58 +538,69 @@ const UserDashboard = () => {
               Dietary Recommendations
             </CardTitle>
             <CardDescription>
-              Nutrition guidance based on your health conditions
+              Nutrition guidance based on your health conditions and region
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {getNutritionRecommendations().map((nutrition, index) => (
-                <div
-                  key={index}
-                  className="p-4 rounded-lg border border-green-200 bg-green-50"
-                >
-                  <div className="flex items-center space-x-2 mb-3">
-                    <span className="p-1.5 rounded-full bg-green-100 text-green-700">
-                      {nutrition.icon}
-                    </span>
-                    <div>
-                      <h3 className="font-medium">{nutrition.title}</h3>
-                      <p className="text-xs text-muted-foreground">{nutrition.category}</p>
-                    </div>
-                  </div>
-                  
-                  <p className="text-sm text-gray-700 mb-3">{nutrition.description}</p>
-                  
-                  <div className="space-y-3">
-                    <div>
-                      <h4 className="text-xs font-medium uppercase text-green-700">Recommended Foods</h4>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {nutrition.foods.map((food, i) => (
-                          <span key={i} className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
-                            {food}
-                          </span>
-                        ))}
+              {dietRecommendations.map((nutrition, index) => {
+                // Determine icon component based on string identifier
+                const NutritionIcon = () => {
+                  if (nutrition.icon === "Salad") return <Salad className="h-5 w-5 text-green-700" />;
+                  if (nutrition.icon === "Apple") return <Apple className="h-5 w-5 text-green-700" />;
+                  if (nutrition.icon === "Heart") return <Heart className="h-5 w-5 text-red-700" />;
+                  if (nutrition.icon === "Fish") return <Drumstick className="h-5 w-5 text-green-700" />;
+                  return <Apple className="h-5 w-5 text-green-700" />;
+                };
+                
+                return (
+                  <div
+                    key={index}
+                    className="p-4 rounded-lg border border-green-200 bg-green-50"
+                  >
+                    <div className="flex items-center space-x-2 mb-3">
+                      <span className="p-1.5 rounded-full bg-green-100">
+                        <NutritionIcon />
+                      </span>
+                      <div>
+                        <h3 className="font-medium">{nutrition.title}</h3>
+                        <p className="text-xs text-muted-foreground">{nutrition.category}</p>
                       </div>
                     </div>
                     
-                    <div>
-                      <h4 className="text-xs font-medium uppercase text-red-700">Foods to Limit</h4>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {nutrition.avoid.map((food, i) => (
-                          <span key={i} className="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded-full">
-                            {food}
-                          </span>
-                        ))}
+                    <p className="text-sm text-gray-700 mb-3">{nutrition.description}</p>
+                    
+                    <div className="space-y-3">
+                      <div>
+                        <h4 className="text-xs font-medium uppercase text-green-700">Recommended Foods</h4>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {nutrition.foods.map((food, i) => (
+                            <span key={i} className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
+                              {food}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <h4 className="text-xs font-medium uppercase text-red-700">Foods to Limit</h4>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {nutrition.avoid.map((food, i) => (
+                            <span key={i} className="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded-full">
+                              {food}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <div className="pt-1">
+                        <h4 className="text-xs font-medium uppercase text-gray-700">Meal Planning Tip</h4>
+                        <p className="text-sm mt-1 text-gray-600">{nutrition.mealPlan}</p>
                       </div>
                     </div>
-                    
-                    <div className="pt-1">
-                      <h4 className="text-xs font-medium uppercase text-gray-700">Meal Planning Tip</h4>
-                      <p className="text-sm mt-1 text-gray-600">{nutrition.mealPlan}</p>
-                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
@@ -818,37 +612,46 @@ const UserDashboard = () => {
               Recommended Physical Activities
             </CardTitle>
             <CardDescription>
-              Tailored exercises based on your health conditions
+              Tailored exercises based on your health conditions and region
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {getExerciseRecommendations().map((exercise, index) => (
-                <div
-                  key={index}
-                  className="p-4 rounded-lg border bg-blue-50 border-blue-200 hover:bg-blue-100 transition-colors cursor-pointer"
-                  onClick={() => handleExerciseClick(exercise)}
-                >
-                  <div className="flex items-center space-x-2 mb-2">
-                    <span className="p-1.5 rounded-full bg-blue-100">
-                      {exercise.icon}
-                    </span>
-                    <h3 className="font-medium">{exercise.title}</h3>
+              {exerciseRecommendations.map((exercise, index) => {
+                // Determine icon component based on string identifier
+                const ExerciseIcon = () => {
+                  if (exercise.icon === "Activity") return <Activity className="h-5 w-5" />;
+                  if (exercise.icon === "Dumbbell") return <Dumbbell className="h-5 w-5" />;
+                  return <Activity className="h-5 w-5" />;
+                };
+                
+                return (
+                  <div
+                    key={index}
+                    className="p-4 rounded-lg border bg-blue-50 border-blue-200 hover:bg-blue-100 transition-colors cursor-pointer"
+                    onClick={() => handleExerciseClick(exercise)}
+                  >
+                    <div className="flex items-center space-x-2 mb-2">
+                      <span className="p-1.5 rounded-full bg-blue-100">
+                        <ExerciseIcon />
+                      </span>
+                      <h3 className="font-medium">{exercise.title}</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{exercise.description}</p>
+                    <div className="flex items-center justify-between mt-2">
+                      <span className={cn(
+                        "text-xs font-medium px-2 py-0.5 rounded-full",
+                        exercise.intensity === "light" && "bg-green-100 text-green-800",
+                        exercise.intensity === "moderate" && "bg-blue-100 text-blue-800",
+                        exercise.intensity === "high" && "bg-amber-100 text-amber-800"
+                      )}>
+                        {exercise.intensity.charAt(0).toUpperCase() + exercise.intensity.slice(1)} intensity
+                      </span>
+                      <span className="text-xs text-blue-600">Click for details</span>
+                    </div>
                   </div>
-                  <p className="text-sm text-muted-foreground">{exercise.description}</p>
-                  <div className="flex items-center justify-between mt-2">
-                    <span className={cn(
-                      "text-xs font-medium px-2 py-0.5 rounded-full",
-                      exercise.intensity === "light" && "bg-green-100 text-green-800",
-                      exercise.intensity === "moderate" && "bg-blue-100 text-blue-800",
-                      exercise.intensity === "high" && "bg-amber-100 text-amber-800"
-                    )}>
-                      {exercise.intensity.charAt(0).toUpperCase() + exercise.intensity.slice(1)} intensity
-                    </span>
-                    <span className="text-xs text-blue-600">Click for details</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>

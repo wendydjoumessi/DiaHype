@@ -1,21 +1,7 @@
+import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-
-// Enhanced mock data for blood glucose chart showing clear pattern
-const data = [
-  { time: '8 AM (Apr 28)', value: 168, meal: 'Before breakfast' },
-  { time: '10 AM (Apr 28)', value: 145, meal: 'After breakfast' },
-  { time: '12 PM (Apr 28)', value: 132, meal: 'Before lunch' },
-  { time: '2 PM (Apr 28)', value: 156, meal: 'After lunch' },
-  { time: '6 PM (Apr 28)', value: 127, meal: 'Before dinner' },
-  { time: '8 PM (Apr 28)', value: 152, meal: 'After dinner' },
-  { time: '8 AM (Apr 29)', value: 161, meal: 'Before breakfast' },
-  { time: '10 AM (Apr 29)', value: 138, meal: 'After breakfast' },
-  { time: '12 PM (Apr 29)', value: 125, meal: 'Before lunch' },
-  { time: '2 PM (Apr 29)', value: 147, meal: 'After lunch' },
-  { time: '6 PM (Apr 29)', value: 122, meal: 'Before dinner' },
-  { time: '8 PM (Apr 29)', value: 145, meal: 'After dinner' },
-  { time: '8 AM (Apr 30)', value: 155, meal: 'Before breakfast' },
-];
+import { format, parseISO } from 'date-fns';
+import { useLatestMeasurements } from '@/hooks/useLatestMeasurements';
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -26,9 +12,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
       <div className="bg-white p-3 shadow-md rounded-md border border-gray-200">
         <p className="font-medium">{`${label}`}</p>
         <p className={`font-bold ${highAlert ? 'text-red-600' : lowAlert ? 'text-yellow-600' : 'text-blue-600'}`}>
-          {`${payload[0].value} mg/dL`}
+          {`${payload[0].value} ${payload[0].unit || 'mg/dL'}`}
         </p>
-        <p className="text-xs text-gray-600 mt-1">{payload[0].payload.meal}</p>
+        <p className="text-xs text-gray-600 mt-1">{payload[0].payload.mealContext || ''}</p>
         
         {highAlert && (
           <p className="text-xs text-red-600 mt-1">
@@ -55,11 +41,35 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export function GlucoseChart() {
-  // Calculate trend over displayed period
-  const firstValue = data[0].value;
-  const lastValue = data[data.length - 1].value;
-  const difference = lastValue - firstValue;
-  const percentChange = ((difference / firstValue) * 100).toFixed(1);
+  const { bloodSugarHistory } = useLatestMeasurements();
+  
+  // Format data for chart
+  const chartData = bloodSugarHistory.map(record => ({
+    time: format(parseISO(record.measured_at), 'MMM d, h:mm a'),
+    value: record.glucose_level,
+    unit: record.unit,
+    mealContext: record.meal_context,
+    date: record.measured_at
+  }));
+
+  // Use fallback data if no records exist
+  const data = chartData.length > 0 ? chartData : [
+    { time: 'No data', value: 100, unit: 'mg/dL', mealContext: 'No data available' }
+  ];
+
+  // Calculate trend over displayed period if there is data
+  const calculateTrend = () => {
+    if (chartData.length < 2) return { difference: 0, percentChange: '0.0' };
+    
+    const firstValue = chartData[0].value;
+    const lastValue = chartData[chartData.length - 1].value;
+    const difference = lastValue - firstValue;
+    const percentChange = ((difference / firstValue) * 100).toFixed(1);
+    
+    return { difference, percentChange };
+  };
+  
+  const { difference, percentChange } = calculateTrend();
   
   return (
     <div className="w-full h-[300px] glucose-chart">
@@ -114,12 +124,19 @@ export function GlucoseChart() {
           />
         </LineChart>
       </ResponsiveContainer>
-      <div className="mt-3 text-center text-sm text-gray-500">
-        <p>Glucose trend: <span className={difference < 0 ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
-          {difference < 0 ? 'Decreased by ' : 'Increased by '}
-          {Math.abs(difference)} mg/dL ({Math.abs(Number(percentChange))}%)
-        </span> over the displayed period</p>
-      </div>
+      {chartData.length > 1 && (
+        <div className="mt-3 text-center text-sm text-gray-500">
+          <p>Glucose trend: <span className={difference < 0 ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+            {difference < 0 ? 'Decreased by ' : 'Increased by '}
+            {Math.abs(difference)} mg/dL ({Math.abs(Number(percentChange))}%)
+          </span> over the displayed period</p>
+        </div>
+      )}
+      {chartData.length <= 1 && (
+        <div className="mt-3 text-center text-sm text-gray-500">
+          <p>Not enough data to calculate glucose trend. Record more measurements.</p>
+        </div>
+      )}
     </div>
   );
 }

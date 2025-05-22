@@ -1,12 +1,12 @@
 export interface HealthCondition {
     id: string;
-    name: string;
-    status: 'active' | 'managed' | 'resolved';
-    diagnosisDate: string;
-    lastUpdated: string;
+    user_id: string;
+    condition_name: string;
+    status: 'active' | 'managed' | 'under treatement';
+    diagnosis_date: string;
+    updated_at: string;
     severity: 'mild' | 'moderate' | 'severe';
-    description?: string;
-    medications?: string[];
+    notes?: string;
   }
   
   export interface Medication {

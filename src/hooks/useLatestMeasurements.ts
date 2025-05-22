@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -6,124 +5,149 @@ import { useAuth } from "@/contexts/AuthContext";
 export const useLatestMeasurements = () => {
   const { user } = useAuth();
 
-  // Mock data for testing
-  const mockBloodSugar = {
-    id: "mock-bs-1",
-    user_id: "test-user-id",
-    glucose_level: 180,
-    unit: "mg/dL", 
-    measured_at: new Date().toISOString(),
-    notes: "Before breakfast",
-    meal_context: "fasting"
-  };
+  const isEnabled = !!user?.id;
 
-  const mockBloodPressure = {
-    id: "mock-bp-1",
-    user_id: "test-user-id", 
-    systolic: 145,
-    diastolic: 92,
-    pulse_rate: 78,
-    measured_at: new Date().toISOString(),
-    notes: "Morning reading"
-  };
-
-  const mockWeight = {
-    id: "mock-w-1",
-    user_id: "test-user-id",
-    weight: 98,
-    unit: "kg",
-    timestamp: new Date().toISOString(),
-    notes: "Morning weight"
-  };
-
+  // Latest Blood Sugar 
   const bloodSugar = useQuery({
     queryKey: ["latest-blood-sugar", user?.id],
+    enabled: isEnabled,
     queryFn: async () => {
-      // For testing without authentication
-      if (!user?.id) {
-        console.log("Using mock blood sugar data (no authenticated user)");
-        return mockBloodSugar;
-      }
-      
       const { data, error } = await supabase
         .from("blood_sugar_records")
         .select("*")
-        .eq("user_id", user?.id)
+        .eq("user_id", user.id)
         .order("measured_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle(); // <-- returns a single object, not array
 
       if (error) {
-        console.log("Error fetching blood sugar data, using mock data:", error);
-        return mockBloodSugar;
+        console.error("Error fetching blood sugar data:", error);
+        return null;
       }
-      
-      return data || mockBloodSugar;
+
+      return data;
     },
-    // Enable the query even without a user ID (for testing)
-    enabled: true,
   });
 
+  // Latest Blood Pressure
   const bloodPressure = useQuery({
     queryKey: ["latest-blood-pressure", user?.id],
+    enabled: isEnabled,
     queryFn: async () => {
-      // For testing without authentication
-      if (!user?.id) {
-        console.log("Using mock blood pressure data (no authenticated user)");
-        return mockBloodPressure;
-      }
-      
       const { data, error } = await supabase
         .from("blood_pressure_records")
         .select("*")
-        .eq("user_id", user?.id)
+        .eq("user_id", user.id)
         .order("measured_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (error) {
-        console.log("Error fetching blood pressure data, using mock data:", error);
-        return mockBloodPressure;
+        console.error("Error fetching blood pressure data:", error);
+        return null;
       }
-      
-      return data || mockBloodPressure;
+
+      return data;
     },
-    // Enable the query even without a user ID (for testing)
-    enabled: true,
   });
 
+  // Latest Weight
   const weight = useQuery({
     queryKey: ["latest-weight", user?.id],
+    enabled: isEnabled, 
     queryFn: async () => {
-      // For testing without authentication
-      if (!user?.id) {
-        console.log("Using mock weight data (no authenticated user)");
-        return mockWeight;
-      }
-      
       const { data, error } = await supabase
         .from("weight_records")
         .select("*")
-        .eq("user_id", user?.id)
+        .eq("user_id", user.id)
         .order("timestamp", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
+      if (error) {
+        console.error("Error fetching weight data:", error);
+        return null;
+      }
+  
+      return data;
+    },
+  });
+  
+
+  // History: Blood Sugar (returns an array)
+  const bloodSugarHistory = useQuery({
+    queryKey: ["blood-sugar-history", user?.id],
+    enabled: isEnabled,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("blood_sugar_records")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("measured_at", { ascending: true });
+        
 
       if (error) {
-        console.log("Error fetching weight data, using mock data:", error);
-        return mockWeight;
+        console.error("Error fetching blood sugar history:", error);
+        return [];
       }
-      
-      return data || mockWeight;
+
+      return data || [];
     },
-    // Enable the query even without a user ID (for testing)
-    enabled: true,
   });
+
+  // History: Blood Pressure
+  const bloodPressureHistory = useQuery({
+    queryKey: ["blood-pressure-history", user?.id],
+    enabled: isEnabled,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("blood_pressure_records")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("measured_at", { ascending: true });
+      if (error) {
+        console.error("Error fetching blood pressure history:", error);
+        return [];
+      }
+
+      return data || [];
+    },
+  });
+
+  // History: Weight
+  const weightHistory = useQuery({
+    queryKey: ["weight-history", user?.id],
+    enabled: isEnabled,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("weight_records")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("timestamp", { ascending: true });
+
+      if (error) {
+        console.error("Error fetching weight history:", error);
+        return [];
+      }
+
+      return data || [];
+    },
+  });
+
+  
 
   return {
     bloodSugar: bloodSugar.data,
     bloodPressure: bloodPressure.data,
     weight: weight.data,
-    isLoading: bloodSugar.isLoading || bloodPressure.isLoading || weight.isLoading,
+    bloodSugarHistory: bloodSugarHistory.data || [],
+    bloodPressureHistory: bloodPressureHistory.data || [],
+    weightHistory: weightHistory.data || [],
+    isLoading:
+      bloodSugar.isLoading ||
+      bloodPressure.isLoading ||
+      weight.isLoading ||
+      bloodSugarHistory.isLoading ||
+      bloodPressureHistory.isLoading ||
+      weightHistory.isLoading,
   };
 };

@@ -79,15 +79,7 @@ export type Database = {
           systolic?: number | null
           user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "blood_pressure_records_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       blood_sugar_records: {
         Row: {

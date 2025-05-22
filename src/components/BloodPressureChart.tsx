@@ -1,49 +1,25 @@
 import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from 'recharts';
-
-// Enhanced mock data for blood pressure chart showing progression over time
-const data = [
-  { date: '2023-04-01', systolic: 149, diastolic: 94 },
-  { date: '2023-04-04', systolic: 146, diastolic: 92 },
-  { date: '2023-04-07', systolic: 143, diastolic: 90 },
-  { date: '2023-04-10', systolic: 142, diastolic: 88 },
-  { date: '2023-04-13', systolic: 139, diastolic: 87 },
-  { date: '2023-04-16', systolic: 135, diastolic: 85 },
-  { date: '2023-04-19', systolic: 132, diastolic: 84 },
-  { date: '2023-04-22', systolic: 128, diastolic: 82 },
-  { date: '2023-04-25', systolic: 130, diastolic: 83 },
-  { date: '2023-04-28', systolic: 127, diastolic: 81 },
-  { date: '2023-05-01', systolic: 125, diastolic: 80 },
-  { date: '2023-05-04', systolic: 124, diastolic: 79 },
-  { date: '2023-05-07', systolic: 123, diastolic: 78 },
-];
+import { format, parseISO } from 'date-fns';
+import { useLatestMeasurements } from '@/hooks/useLatestMeasurements';
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
-    const date = new Date(label).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-    
-    const systolicChange = payload[0].payload.systolicChange;
-    const diastolicChange = payload[0].payload.diastolicChange;
-    
     return (
       <div className="bg-white p-3 shadow-md rounded-md border border-gray-200">
-        <p className="font-medium">{date}</p>
+        <p className="font-medium">{label}</p>
         <p className="text-blue-600 font-bold">{`Systolic: ${payload[0].value} mmHg`}</p>
         <p className="text-green-600 font-bold">{`Diastolic: ${payload[1].value} mmHg`}</p>
         
-        {systolicChange && (
-          <p className={`text-xs ${systolicChange < 0 ? 'text-green-600' : 'text-red-600'}`}>
-            Systolic: {systolicChange < 0 ? '↓' : '↑'} {Math.abs(systolicChange)} from previous
+        {payload[0].payload.systolicChange && (
+          <p className={`text-xs ${payload[0].payload.systolicChange < 0 ? 'text-green-600' : 'text-red-600'}`}>
+            Systolic: {payload[0].payload.systolicChange < 0 ? '↓' : '↑'} {Math.abs(payload[0].payload.systolicChange)} from previous
           </p>
         )}
         
-        {diastolicChange && (
-          <p className={`text-xs ${diastolicChange < 0 ? 'text-green-600' : 'text-red-600'}`}>
-            Diastolic: {diastolicChange < 0 ? '↓' : '↑'} {Math.abs(diastolicChange)} from previous
+        {payload[0].payload.diastolicChange && (
+          <p className={`text-xs ${payload[0].payload.diastolicChange < 0 ? 'text-green-600' : 'text-red-600'}`}>
+            Diastolic: {payload[0].payload.diastolicChange < 0 ? '↓' : '↑'} {Math.abs(payload[0].payload.diastolicChange)} from previous
           </p>
         )}
       </div>
@@ -54,12 +30,27 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export function BloodPressureChart() {
+  const { bloodPressureHistory } = useLatestMeasurements();
+
+  // Format data for chart
+  const baseChartData = bloodPressureHistory.map(record => ({
+    date: format(parseISO(record.measured_at), 'MMM d'),
+    rawDate: record.measured_at,
+    systolic: record.systolic,
+    diastolic: record.diastolic,
+  }));
+
+  // Use fallback data if no records exist
+  const baseData = baseChartData.length > 0 ? baseChartData : [
+    { date: 'No data', systolic: 120, diastolic: 80 }
+  ];
+
   // Add trend indicators and changes to data
-  const enhancedData = data.map((item, index) => {
+  const enhancedData = baseData.map((item, index) => {
     if (index === 0) return { ...item };
     
-    const systolicPrev = data[index - 1].systolic;
-    const diastolicPrev = data[index - 1].diastolic;
+    const systolicPrev = baseData[index - 1].systolic;
+    const diastolicPrev = baseData[index - 1].diastolic;
     const systolicCurrent = item.systolic;
     const diastolicCurrent = item.diastolic;
     
@@ -69,6 +60,23 @@ export function BloodPressureChart() {
       diastolicChange: diastolicCurrent - diastolicPrev
     };
   });
+
+  // Calculate overall trend if there is data
+  const calculateTrend = () => {
+    if (baseChartData.length < 2) return { systolicDiff: 0, diastolicDiff: 0 };
+    
+    const firstSystolic = baseChartData[0].systolic;
+    const lastSystolic = baseChartData[baseChartData.length - 1].systolic;
+    const systolicDiff = lastSystolic - firstSystolic;
+    
+    const firstDiastolic = baseChartData[0].diastolic;
+    const lastDiastolic = baseChartData[baseChartData.length - 1].diastolic;
+    const diastolicDiff = lastDiastolic - firstDiastolic;
+    
+    return { systolicDiff, diastolicDiff };
+  };
+  
+  const { systolicDiff, diastolicDiff } = calculateTrend();
 
   return (
     <div className="w-full h-[300px]">
@@ -97,10 +105,6 @@ export function BloodPressureChart() {
             tick={{ fontSize: 12 }} 
             tickLine={false}
             axisLine={{ stroke: '#E5E7EB' }}
-            tickFormatter={(value) => {
-              const date = new Date(value);
-              return date.getDate() + '/' + (date.getMonth() + 1);
-            }}
           />
           <YAxis 
             domain={[60, 160]}
@@ -139,9 +143,20 @@ export function BloodPressureChart() {
           <text x={50} y={135} fill="#EF4444" fontSize={10}>Systolic high</text>
         </LineChart>
       </ResponsiveContainer>
-      <div className="mt-3 text-center text-sm text-gray-500">
-        <p>Blood pressure trend: <span className="text-green-600 font-medium">Decreased by 26/16 mmHg</span> over the last month</p>
-      </div>
+      {baseChartData.length > 1 ? (
+        <div className="mt-3 text-center text-sm text-gray-500">
+          <p>Blood pressure trend: 
+            <span className={(systolicDiff <= 0 && diastolicDiff <= 0) ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+              {(systolicDiff <= 0 && diastolicDiff <= 0) ? 'Decreased by ' : 'Changed by '}
+              {Math.abs(systolicDiff)}/{Math.abs(diastolicDiff)} mmHg
+            </span> over the displayed period
+          </p>
+        </div>
+      ) : (
+        <div className="mt-3 text-center text-sm text-gray-500">
+          <p>Not enough data to calculate blood pressure trend. Record more measurements.</p>
+        </div>
+      )}
     </div>
   );
 }
